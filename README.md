@@ -59,6 +59,8 @@ The formula does not build nomux. It downloads the archive of your platform from
 
 The formula has the SHA-256 checksum of each of the four archives. The values are a copy of the `SHA256SUMS` file of the release. Before Homebrew installs an archive, it calculates the checksum of the download. If the checksum is not the same as in the formula, Homebrew stops and installs nothing.
 
+The macOS binaries have an ad hoc signature from the linker. They do not have a Developer ID signature and Apple did not notarize them: the code signing of nomux starts with the first stable release. Homebrew does not put the quarantine attribute on the files of a formula, thus macOS starts the binaries without a Gatekeeper message. CI showed this on macOS 26 with Apple silicon.
+
 For each pull request, CI downloads all four archives, compares them with the checksums of the formula, then installs and tests the formula on Linux (x86_64) and on macOS (Apple silicon).
 
 ## How the formula is updated
