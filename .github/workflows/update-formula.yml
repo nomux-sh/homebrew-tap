@@ -1,0 +1,60 @@
+name: Update formula
+
+# Finds the newest nomux version that has no suffix. If it is newer than the
+# formula, the job opens a pull request that changes the version and the four
+# checksums. The job uses only the token of the run.
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-formula
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: update
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # The push of the branch uses the token that the checkout keeps.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Update the formula
+        id: update
+        run: echo "version=$(scripts/update-formula.sh)" >>"$GITHUB_OUTPUT"
+      - name: Open the pull request
+        if: steps.update.outputs.version != ''
+        env:
+          VERSION: ${{ steps.update.outputs.version }}
+        run: |
+          set -euo pipefail
+          branch="update-nomux-$VERSION"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "The branch $branch exists: an earlier run opened the pull request."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config core.hooksPath .githooks
+          git switch --create "$branch"
+          git commit --signoff --message "build: update nomux to $VERSION" Formula/nomux.rb
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "build: update nomux to $VERSION" \
+            --body "## Summary
+
+          \`scripts/update-formula.sh\` changed the formula to nomux $VERSION: the version in the four archive addresses and the four SHA-256 checksums from \`SHA256SUMS\` of the [release](https://github.com/nomux-sh/nomux/releases/tag/v$VERSION).
+
+          ## Verification
+
+          GitHub does not start the checks of a pull request that the token of a workflow run opens. A maintainer selects **Approve workflows to run**. Then the \`formula\` jobs download all four archives, compare them with the checksums, and install and test the formula on Linux and macOS."
