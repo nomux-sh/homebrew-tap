@@ -39,7 +39,7 @@ actionlint
 If Homebrew is on the computer and this clone is the tap `nomux-sh/tap`, also run the formula checks. Without Homebrew, the `formula` jobs of CI run them on Linux and macOS.
 
 ```sh
-brew style nomux-sh/tap
+brew style nomux-sh/tap/nomux
 brew audit --strict --online nomux-sh/tap/nomux
 brew fetch --all-platforms nomux-sh/tap/nomux
 brew install nomux-sh/tap/nomux
