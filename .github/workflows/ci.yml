@@ -54,8 +54,10 @@ jobs:
           mkdir -p "$taps"
           ln -s "$GITHUB_WORKSPACE" "$taps/homebrew-tap"
           brew trust nomux-sh/tap
+      # The target is the formula. With the tap as the target, `brew style`
+      # also applies the Bash rules of Homebrew to the POSIX scripts.
       - name: brew style
-        run: brew style nomux-sh/tap
+        run: brew style nomux-sh/tap/nomux
       - name: brew audit
         env:
           HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
