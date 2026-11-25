@@ -1,0 +1,124 @@
+name: CI
+
+# The shared jobs call the reusable workflows of the organization. The steps
+# are in https://github.com/nomux-sh/.github/tree/main/.github/workflows
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repo-lint:
+    uses: nomux-sh/.github/.github/workflows/repo-lint.yml@main
+    with:
+      license: code
+      require-changelog: false
+
+  # Homebrew is a part of the GitHub runner images. The job uses that
+  # installation and does not update it.
+  formula:
+    name: formula (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_ENV_HINTS: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Add Homebrew to PATH
+        if: runner.os == 'Linux'
+        run: echo "/home/linuxbrew/.linuxbrew/bin" >>"$GITHUB_PATH"
+      # The link makes this checkout the tap `nomux-sh/tap`, thus the job
+      # examines the formula of the pull request and not the one on `main`.
+      - name: Make this checkout the tap
+        run: |
+          set -euo pipefail
+          brew --version
+          taps="$(brew --repository)/Library/Taps/nomux-sh"
+          mkdir -p "$taps"
+          ln -s "$GITHUB_WORKSPACE" "$taps/homebrew-tap"
+          brew trust nomux-sh/tap
+      - name: brew style
+        run: brew style nomux-sh/tap
+      - name: brew audit
+        env:
+          HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
+        run: brew audit --strict --online nomux-sh/tap/nomux
+      # The other jobs install one archive each. This step downloads all
+      # four and compares each one with its checksum in the formula.
+      - name: Verify the checksums of all four archives
+        if: runner.os == 'Linux'
+        run: brew fetch --all-platforms nomux-sh/tap/nomux
+      - name: brew install
+        run: brew install nomux-sh/tap/nomux
+      - name: brew test
+        run: brew test nomux-sh/tap/nomux
+      - name: Show the installed binaries
+        run: |
+          set -euo pipefail
+          for binary in nomux nomuxd nomux-holder; do
+            command -v "$binary"
+            "$binary" --version
+            file "$(brew --prefix nomux-sh/tap/nomux)/bin/$binary"
+          done
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            sw_vers
+            uname -m
+            codesign --display --verbose=2 "$(brew --prefix nomux-sh/tap/nomux)/bin/nomux" 2>&1 || true
+            xattr -l "$(brew --prefix nomux-sh/tap/nomux)/bin/nomux"
+          fi
+
+  scripts:
+    name: scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: shellcheck
+        run: |
+          shellcheck --version
+          shellcheck scripts/*.sh tests/*.sh
+      - name: Test the update script
+        run: tests/update-formula.sh
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install actionlint
+        run: |
+          set -euo pipefail
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/$archive"
+          echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/$archive" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
+      - name: actionlint
+        run: |
+          "$RUNNER_TEMP/actionlint" -version
+          "$RUNNER_TEMP/actionlint" -color
