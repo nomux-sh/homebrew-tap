@@ -71,20 +71,6 @@ jobs:
         run: brew install nomux-sh/tap/nomux
       - name: brew test
         run: brew test nomux-sh/tap/nomux
-      - name: Show the installed binaries
-        run: |
-          set -euo pipefail
-          for binary in nomux nomuxd nomux-holder; do
-            command -v "$binary"
-            "$binary" --version
-            file "$(brew --prefix nomux-sh/tap/nomux)/bin/$binary"
-          done
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            sw_vers
-            uname -m
-            codesign --display --verbose=2 "$(brew --prefix nomux-sh/tap/nomux)/bin/nomux" 2>&1 || true
-            xattr -l "$(brew --prefix nomux-sh/tap/nomux)/bin/nomux"
-          fi
 
   scripts:
     name: scripts
