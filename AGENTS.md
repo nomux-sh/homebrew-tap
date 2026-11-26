@@ -8,17 +8,20 @@ Rules for coding agents and for people who work in this repository. `CLAUDE.md` 
 
 | Path | Responsibility |
 |---|---|
-| `Formula/nomux.rb` | The formula: one archive address and one SHA-256 checksum for each of the four targets. |
+| `Formula/nomux.rb` | The formula: one archive address and one SHA-256 checksum for each of the four targets, and the `bottle` block. |
 | `audit_exceptions/github_prerelease_allowlist.json` | Tells `brew audit` that the formula can use a GitHub pre-release. |
-| `scripts/update-formula.sh` | Moves the formula to the newest nomux version that has no suffix. |
+| `scripts/update-formula.sh` | Moves the formula to the newest nomux version that has no suffix and removes the `bottle` block. |
 | `tests/update-formula.sh`, `tests/fixtures/` | Test of the update script, with a release list and checksum files that are not from the network. |
-| `.github/workflows/` | `ci.yml` (checks), `pull-request.yml` (sign-off, commit messages), `update-formula.yml` (opens the pull request for a new nomux version). |
+| `.github/workflows/` | `ci.yml` (checks), `pull-request.yml` (sign-off, commit messages), `update-formula.yml` (makes the bottles and opens the pull request for a new nomux version). |
+| `.github/actions/set-up-tap/` | Makes the checkout the tap `nomux-sh/tap` in the Homebrew installation of a runner. |
 
 ## Rules for this repository
 
 - The formula installs the binaries of a release. Do not build from source in the formula and do not add a dependency.
 - The checksums come from the `SHA256SUMS` file of the release. Do not calculate a checksum from an archive that you downloaded.
-- To change the version, run `scripts/update-formula.sh`. Do not edit the version or a checksum by hand.
+- To change the version, run the workflow `update-formula.yml`. It runs `scripts/update-formula.sh` and makes the bottles. Do not edit the version, a checksum or the `bottle` block by hand.
+- The formula has bottles, because Homebrew requires current Command Line Tools for a formula without a bottle (issue #5). A bottle contains the binaries of the release archive. It has the tag of macOS 11, the oldest macOS version that Homebrew knows, because the binaries need macOS 11.0 or later. The bottles are attached to the release `nomux-X.Y.Z` of this repository.
+- If you change the installed files in a different way, delete the `bottle` block in the same commit. Then run `update-formula.yml` on your branch. It makes new bottles and adds a commit to the branch.
 - The formula has no `version` line. Homebrew reads the version from the archive address, and `brew audit` rejects a `version` line that says the same.
 - The update script and `install.sh` of the `nomux` repository select the newest version with the same rule. When the rule changes there, change it here.
 - When nomux publishes a release that is not a GitHub pre-release, `brew audit` fails until you delete the `nomux` entry from `audit_exceptions/github_prerelease_allowlist.json`.
