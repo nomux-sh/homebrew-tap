@@ -7,6 +7,3 @@ updates:
     commit-message:
       prefix: "ci"
     labels: ["dependencies", "ci"]
-    groups:
-      actions:
-        update-types: ["minor", "patch"]
