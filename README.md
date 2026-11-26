@@ -67,7 +67,7 @@ On an Intel Mac, Homebrew requires Xcode or the Command Line Tools of some versi
 
 The macOS binaries have an ad hoc signature from the linker. They do not have a Developer ID signature and Apple did not notarize them: the code signing of nomux starts with the first stable release. Homebrew does not put the quarantine attribute on the files of a formula, thus macOS starts the binaries without a Gatekeeper message. CI showed this on macOS 26 with Apple silicon.
 
-For each pull request, CI downloads all four archives and the bottles, compares them with the checksums of the formula, then installs and tests the formula on Linux (x86_64 and aarch64) and on macOS (Apple silicon and Intel). Before the install on macOS, CI writes an old version into the package receipt of the Command Line Tools. CI shows that a build from source stops, that the install of the bottle succeeds, and that `nomux new` and `nomux ls` work.
+For each pull request, CI downloads all four archives and compares them with the checksums of the formula. Then it installs the bottle and tests the formula on Linux (x86_64 and aarch64) and on macOS (Apple silicon and Intel). Homebrew compares each bottle with its checksum before the install. Before the install on macOS, CI writes an old version into the package receipt of the Command Line Tools. CI shows that a build from source stops, that the install of the bottle succeeds, and that `nomux new` and `nomux ls` work.
 
 ## How the formula is updated
 
