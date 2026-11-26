@@ -4,32 +4,32 @@ class Nomux < Formula
   license any_of: ["MIT", "Apache-2.0"]
 
   bottle do
-    root_url "https://github.com/nomux-sh/homebrew-tap/releases/download/nomux-0.4.0"
-    sha256 cellar: :any_skip_relocation, arm64_big_sur: "14570b64b64426bfd82bc4043ffd70d7e84919134d5b5fce6247f36efd77745c"
-    sha256 cellar: :any_skip_relocation, big_sur:       "c4f07834feaf8d7ceb8fa2efc37d193ebfcd4ce2330f24f972a4a0e3e8d435fe"
-    sha256 cellar: :any_skip_relocation, arm64_linux:   "421200b614b66104faf912095f90e5539a81cf90980576143ad81d4297c0cb10"
-    sha256 cellar: :any_skip_relocation, x86_64_linux:  "125dc1882a65e162c227ed59b5018b4166bcfc817288842edfe2ac8ccc543582"
+    root_url "https://github.com/nomux-sh/homebrew-tap/releases/download/nomux-0.5.0"
+    sha256 cellar: :any_skip_relocation, arm64_big_sur: "f203333960dac8ee3cc337a545aaef7bb0ae8100603a35cd01f1b42a0d5bad41"
+    sha256 cellar: :any_skip_relocation, big_sur:       "bd3c69e909ceb2b1566701bf6f6b38008e6f0a6006123945316f2f6927574e26"
+    sha256 cellar: :any_skip_relocation, arm64_linux:   "5b2b33b1272cec15fa9b19db5b7271142e610044b36aef854af7212b786e5e54"
+    sha256 cellar: :any_skip_relocation, x86_64_linux:  "47b80c1a92a08fd7fe83cb0e005b86aff6be3b235d06169333d9a5498ff5e32a"
   end
 
   on_macos do
     on_arm do
-      url "https://github.com/nomux-sh/nomux/releases/download/v0.4.0/nomux-0.4.0-aarch64-apple-darwin.tar.gz"
-      sha256 "d9632365f8f9b70dd4af4a1cbd70f35da9f70736361fdd6bfc69d9b8a33f9ec1"
+      url "https://github.com/nomux-sh/nomux/releases/download/v0.5.0/nomux-0.5.0-aarch64-apple-darwin.tar.gz"
+      sha256 "d4d67e31233188a0c9bc988613cb86207521c7134b630232d9edb5662723b8e9"
     end
     on_intel do
-      url "https://github.com/nomux-sh/nomux/releases/download/v0.4.0/nomux-0.4.0-x86_64-apple-darwin.tar.gz"
-      sha256 "4252dabdddcef583bc7b39fa00ab7387a9485502dafe02aac11de1bf4e089c7f"
+      url "https://github.com/nomux-sh/nomux/releases/download/v0.5.0/nomux-0.5.0-x86_64-apple-darwin.tar.gz"
+      sha256 "2545c13ff48053c9191a12acd2339a0eb6f12d83f14b1ac928e933d32bbac65f"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/nomux-sh/nomux/releases/download/v0.4.0/nomux-0.4.0-aarch64-unknown-linux-musl.tar.gz"
-      sha256 "df80ae2f89ddf9252bc09f1d0e932d73b613a6cbb8f6e424c2939c755b0d71ed"
+      url "https://github.com/nomux-sh/nomux/releases/download/v0.5.0/nomux-0.5.0-aarch64-unknown-linux-musl.tar.gz"
+      sha256 "848a71518324ef65910c9805ac68bc055a020853e0297df97c83f8de04f0fde0"
     end
     on_intel do
-      url "https://github.com/nomux-sh/nomux/releases/download/v0.4.0/nomux-0.4.0-x86_64-unknown-linux-musl.tar.gz"
-      sha256 "5fbd9c4bca24e5da0903e6a143b3e3b912bac05675bd453ce53f08ddf6619bdd"
+      url "https://github.com/nomux-sh/nomux/releases/download/v0.5.0/nomux-0.5.0-x86_64-unknown-linux-musl.tar.gz"
+      sha256 "f3a1b8d50cc1a051e8d6102733898c81dc061d7b0ce017b8e2a0eaf415db04c4"
     end
   end
 
