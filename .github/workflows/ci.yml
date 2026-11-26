@@ -50,11 +50,13 @@ jobs:
         run: brew style nomux-sh/tap/nomux
       - name: brew audit
         run: brew audit --strict --online nomux-sh/tap/nomux
-      # The other jobs install one bottle each. This step downloads the four
-      # archives and the bottles and compares each one with its checksum.
+      # Each job installs the bottle of its platform, and Homebrew compares the
+      # bottle with its checksum. This step downloads the four release
+      # archives, which the bottles contain, and compares each one with its
+      # checksum.
       - name: Verify the checksums of all four archives
         if: matrix.os == 'ubuntu-latest'
-        run: brew fetch --all-platforms nomux-sh/tap/nomux
+        run: brew fetch --all-platforms --build-from-source nomux-sh/tap/nomux
       # Homebrew reads the version of the Command Line Tools with `pkgutil
       # --pkg-info com.apple.pkg.CLTools_Executables`. The step writes an old
       # version into that package receipt. System Integrity Protection is off
