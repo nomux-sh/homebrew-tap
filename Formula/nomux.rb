@@ -3,6 +3,14 @@ class Nomux < Formula
   homepage "https://github.com/nomux-sh/nomux"
   license any_of: ["MIT", "Apache-2.0"]
 
+  bottle do
+    root_url "https://github.com/nomux-sh/homebrew-tap/releases/download/nomux-0.4.0"
+    sha256 cellar: :any_skip_relocation, arm64_big_sur: "14570b64b64426bfd82bc4043ffd70d7e84919134d5b5fce6247f36efd77745c"
+    sha256 cellar: :any_skip_relocation, big_sur:       "c4f07834feaf8d7ceb8fa2efc37d193ebfcd4ce2330f24f972a4a0e3e8d435fe"
+    sha256 cellar: :any_skip_relocation, arm64_linux:   "421200b614b66104faf912095f90e5539a81cf90980576143ad81d4297c0cb10"
+    sha256 cellar: :any_skip_relocation, x86_64_linux:  "125dc1882a65e162c227ed59b5018b4166bcfc817288842edfe2ac8ccc543582"
+  end
+
   on_macos do
     on_arm do
       url "https://github.com/nomux-sh/nomux/releases/download/v0.4.0/nomux-0.4.0-aarch64-apple-darwin.tar.gz"
