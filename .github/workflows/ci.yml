@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-26-intel]
     env:
       HOMEBREW_NO_AUTO_UPDATE: "1"
       HOMEBREW_NO_INSTALL_CLEANUP: "1"
@@ -48,13 +48,46 @@ jobs:
         env:
           HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
         run: brew audit --strict --online nomux-sh/tap/nomux
-      # The other jobs install one archive each. This step downloads all
-      # four and compares each one with its checksum in the formula.
+      # The other jobs install one bottle each. This step downloads the four
+      # archives and the bottles and compares each one with its checksum.
       - name: Verify the checksums of all four archives
-        if: runner.os == 'Linux'
+        if: matrix.os == 'ubuntu-latest'
         run: brew fetch --all-platforms nomux-sh/tap/nomux
+      # Homebrew reads the version of the Command Line Tools with `pkgutil
+      # --pkg-info com.apple.pkg.CLTools_Executables`. The step writes an old
+      # version into that package receipt. System Integrity Protection is off
+      # on the GitHub macOS runners, thus the receipt can change. The runner is
+      # discarded after the job.
+      - name: Make the Command Line Tools look outdated
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          receipt=/Library/Apple/System/Library/Receipts/com.apple.pkg.CLTools_Executables.plist
+          cp "$receipt" "$RUNNER_TEMP/clt-receipt.plist"
+          sudo plutil -replace PackageVersion -string 10.0.0.0.1.1 "$receipt"
+          brew config | grep -E '^(macOS|CLT|Xcode):'
+      - name: Show that a build from source stops
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          if brew install --build-from-source nomux-sh/tap/nomux 2>"$RUNNER_TEMP/build.log"; then
+            echo "The build from source did not stop." >&2
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/build.log"
+          grep -q 'Your Command Line Tools are too outdated.' "$RUNNER_TEMP/build.log"
       - name: brew install
         run: brew install nomux-sh/tap/nomux
+      - name: Run nomux
+        run: |
+          set -euo pipefail
+          nomux --version
+          nomux new
+          nomux ls
+          nomux daemon stop
+      - name: Write the receipt of the Command Line Tools back
+        if: runner.os == 'macOS'
+        run: sudo cp "$RUNNER_TEMP/clt-receipt.plist" /Library/Apple/System/Library/Receipts/com.apple.pkg.CLTools_Executables.plist
       - name: brew test
         run: brew test nomux-sh/tap/nomux
 
