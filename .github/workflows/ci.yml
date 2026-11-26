@@ -22,8 +22,6 @@ jobs:
       license: code
       require-changelog: false
 
-  # Homebrew is a part of the GitHub runner images. The job uses that
-  # installation and does not update it.
   formula:
     name: formula (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -41,19 +39,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Add Homebrew to PATH
-        if: runner.os == 'Linux'
-        run: echo "/home/linuxbrew/.linuxbrew/bin" >>"$GITHUB_PATH"
-      # The link makes this checkout the tap `nomux-sh/tap`, thus the job
-      # examines the formula of the pull request and not the one on `main`.
-      - name: Make this checkout the tap
-        run: |
-          set -euo pipefail
-          brew --version
-          taps="$(brew --repository)/Library/Taps/nomux-sh"
-          mkdir -p "$taps"
-          ln -s "$GITHUB_WORKSPACE" "$taps/homebrew-tap"
-          brew trust nomux-sh/tap
+      - uses: ./.github/actions/set-up-tap
       # The target is the formula. With the tap as the target, `brew style`
       # also applies the Bash rules of Homebrew to the POSIX scripts.
       - name: brew style

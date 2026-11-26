@@ -1,7 +1,9 @@
 #!/bin/sh
 # Moves Formula/nomux.rb to the newest nomux version that has no suffix: the
 # version in the four archive addresses and the four SHA-256 checksums from the
-# SHA256SUMS file of the release.
+# SHA256SUMS file of the release. It removes the `bottle` block, because the
+# bottles contain the old version. The workflow update-formula.yml makes the
+# bottles of the new version.
 #
 # Usage: scripts/update-formula.sh [<formula>]
 #
@@ -84,7 +86,11 @@ awk -v version="$newest" -v url="$ARCHIVE_URL" -v targets="$TARGETS" -v sums="$w
     }
   }
   /^ *sha256 "/ { sub(/sha256 ".*"/, "sha256 \"" checksum[archive] "\"") }
-  { print }
+  /^  bottle do$/ { in_bottle = 1 }
+  in_bottle && /^  end$/ { in_bottle = 0; after_bottle = 1; next }
+  in_bottle { next }
+  after_bottle && /^$/ { after_bottle = 0; next }
+  { after_bottle = 0; print }
 ' "$formula" >"$work/formula"
 cat "$work/formula" >"$formula"
 

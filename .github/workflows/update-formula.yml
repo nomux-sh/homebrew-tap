@@ -1,24 +1,110 @@
 name: Update formula
 
 # Finds the newest nomux version that has no suffix. If it is newer than the
-# formula, the job opens a pull request that changes the version and the four
-# checksums. The job uses only the token of the run.
+# formula, or if the formula has no `bottle` block, the jobs make the bottles,
+# attach them to the release `nomux-X.Y.Z` of this repository and write the
+# `bottle` block. On `main`, the last job opens a pull request. On a different
+# branch, it adds a commit to that branch. The jobs use only the token of the
+# run.
 
 on:
   schedule:
     - cron: "23 5 * * *"
   workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Make the bottles and show the change of the formula. Publish nothing.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: update-formula
+  group: update-formula-${{ github.ref }}
   cancel-in-progress: false
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_INSTALL_CLEANUP: "1"
+  HOMEBREW_NO_ENV_HINTS: "1"
+  HOMEBREW_NO_ANALYTICS: "1"
 
 jobs:
   update:
     name: update
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.update.outputs.version }}
+      moved: ${{ steps.update.outputs.moved }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Update the formula
+        id: update
+        run: |
+          set -euo pipefail
+          moved="$(scripts/update-formula.sh)"
+          if grep -q '^  bottle do$' Formula/nomux.rb; then
+            echo "The formula is current and has bottles."
+            exit 0
+          fi
+          version="$(sed -n 's|.*/releases/download/v\([0-9.]*\)/.*|\1|p' Formula/nomux.rb | sort -u)"
+          echo "The formula needs the bottles of nomux $version."
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+          echo "moved=$moved" >>"$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.update.outputs.version != ''
+        with:
+          name: formula
+          path: Formula/nomux.rb
+
+  # Each runner makes the bottle of its platform. The bottle contains the
+  # binaries of the release archive. Nothing is compiled.
+  bottle:
+    name: bottle (${{ matrix.os }})
+    needs: update
+    if: needs.update.outputs.version != ''
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-26-intel]
+    env:
+      VERSION: ${{ needs.update.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: formula
+          path: Formula
+      - uses: ./.github/actions/set-up-tap
+      - name: Install the formula for a bottle
+        run: brew install --build-bottle nomux-sh/tap/nomux
+      # Homebrew pours a macOS bottle on the macOS version of its tag and on
+      # later versions. The macOS binaries need macOS 11.0 or later, thus the
+      # bottles get the tag of macOS 11 and not the one of the runner.
+      - name: Make the bottle
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = macOS ]; then
+            export HOMEBREW_FAKE_MACOS=11
+          fi
+          brew bottle --json \
+            --root-url="https://github.com/$GITHUB_REPOSITORY/releases/download/nomux-$VERSION" \
+            nomux-sh/tap/nomux
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bottle-${{ matrix.os }}
+          path: "*.bottle.*"
+
+  publish:
+    name: publish
+    needs: [update, bottle]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -26,35 +112,76 @@ jobs:
       pull-requests: write
     env:
       GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.update.outputs.version }}
+      MOVED: ${{ needs.update.outputs.moved }}
+      DRY_RUN: ${{ inputs.dry-run }}
     steps:
       # The push of the branch uses the token that the checkout keeps.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Update the formula
-        id: update
-        run: echo "version=$(scripts/update-formula.sh)" >>"$GITHUB_OUTPUT"
-      - name: Open the pull request
-        if: steps.update.outputs.version != ''
-        env:
-          VERSION: ${{ steps.update.outputs.version }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: formula
+          path: Formula
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: bottle-*
+          path: ${{ runner.temp }}/bottles
+          merge-multiple: true
+      - uses: ./.github/actions/set-up-tap
+      - name: Write the bottle block
         run: |
           set -euo pipefail
+          brew bottle --merge --write --no-commit "$RUNNER_TEMP"/bottles/*.bottle.json
+          git diff
+      # Homebrew downloads a bottle by the name in `filename`. `brew bottle`
+      # writes the file with the name in `local_filename`.
+      - name: Attach the bottles to the release
+        if: env.DRY_RUN != 'true'
+        working-directory: ${{ runner.temp }}/bottles
+        run: |
+          set -euo pipefail
+          jq -r '.[].bottle.tags[] | "\(.local_filename) \(.filename)"' ./*.bottle.json |
+            while read -r local_filename filename; do
+              mv "$local_filename" "$filename"
+            done
+          release="nomux-$VERSION"
+          if gh release view "$release" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$release" ./*.bottle.tar.gz --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$release" ./*.bottle.tar.gz --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --latest=false --title "nomux $VERSION bottles" \
+              --notes "Homebrew bottles of [nomux $VERSION](https://github.com/nomux-sh/nomux/releases/tag/v$VERSION). Each bottle contains the binaries of the release archive of its platform."
+          fi
+      - name: Commit the formula
+        if: env.DRY_RUN != 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config core.hooksPath .githooks
+          if [ -n "$MOVED" ]; then
+            subject="build: update nomux to $VERSION"
+          else
+            subject="build: add the bottles of nomux $VERSION"
+          fi
+          if [ "$GITHUB_REF_NAME" != main ]; then
+            git commit --signoff --message "$subject" Formula/nomux.rb
+            git push origin "HEAD:$GITHUB_REF_NAME"
+            exit 0
+          fi
           branch="update-nomux-$VERSION"
           if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
             echo "The branch $branch exists: an earlier run opened the pull request."
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config core.hooksPath .githooks
           git switch --create "$branch"
-          git commit --signoff --message "build: update nomux to $VERSION" Formula/nomux.rb
+          git commit --signoff --message "$subject" Formula/nomux.rb
           git push origin "$branch"
-          gh pr create --base main --head "$branch" \
-            --title "build: update nomux to $VERSION" \
+          gh pr create --base main --head "$branch" --title "$subject" \
             --body "## Summary
 
-          \`scripts/update-formula.sh\` changed the formula to nomux $VERSION: the version in the four archive addresses and the four SHA-256 checksums from \`SHA256SUMS\` of the [release](https://github.com/nomux-sh/nomux/releases/tag/v$VERSION).
+          The workflow \`update-formula.yml\` changed the formula to nomux $VERSION. \`scripts/update-formula.sh\` wrote the version in the four archive addresses and the four SHA-256 checksums from \`SHA256SUMS\` of the [release](https://github.com/nomux-sh/nomux/releases/tag/v$VERSION). \`brew bottle\` wrote the \`bottle\` block. The bottles are attached to the release [nomux-$VERSION](https://github.com/$GITHUB_REPOSITORY/releases/tag/nomux-$VERSION) of this repository.
 
           ## Verification
 
-          GitHub does not start the checks of a pull request that the token of a workflow run opens. A maintainer selects **Approve workflows to run**. Then the \`formula\` jobs download all four archives, compare them with the checksums, and install and test the formula on Linux and macOS."
+          GitHub does not start the checks of a pull request that the token of a workflow run opens. A maintainer selects **Approve workflows to run**. Then the \`formula\` jobs download all four archives and the bottles, compare them with the checksums, and install and test the formula on Linux and macOS."
