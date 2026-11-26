@@ -1,7 +1,8 @@
 #!/bin/sh
 # Test of scripts/update-formula.sh. The script reads the releases and the
 # checksums from tests/fixtures/, not from the network. The fixtures have the
-# releases 999.9.0, 999.10.0 and 999.11.0-beta.1.
+# releases 999.9.0, 999.10.0 and 999.11.0-beta.1. Formula/nomux.rb must have
+# a bottle block, because the script removes it.
 #
 # Usage: tests/update-formula.sh
 set -eu
@@ -31,6 +32,12 @@ while read -r checksum archive; do
 done <"$fixtures/complete/download/v999.10.0/SHA256SUMS"
 [ "$(grep -c '^ *url "' "$work/nomux.rb")" -eq 4 ] || fail "The formula does not have four addresses."
 [ "$(grep -c '^ *sha256 "' "$work/nomux.rb")" -eq 4 ] || fail "The formula does not have four checksums."
+grep -q '^  bottle do$' Formula/nomux.rb || fail "Formula/nomux.rb has no bottle block for the test."
+if grep -q 'bottle\|root_url\|cellar:' "$work/nomux.rb"; then
+  fail "The script kept the bottle block of the old version."
+fi
+grep -B 1 '^  on_macos do$' "$work/nomux.rb" | head -n 1 | grep -q '^$' ||
+  fail "The script did not keep one empty line before on_macos."
 
 cp "$work/nomux.rb" "$work/current.rb"
 [ -z "$(update complete)" ] || fail "The script printed a version for a formula that is current."
