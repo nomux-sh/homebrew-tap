@@ -5,23 +5,23 @@ class Nomux < Formula
 
   on_macos do
     on_arm do
-      url "https://github.com/nomux-sh/nomux/releases/download/v0.2.1/nomux-0.2.1-aarch64-apple-darwin.tar.gz"
-      sha256 "fe82a06c4606917787618d300da532c0456052aebf982174717de7ca0a7bf38c"
+      url "https://github.com/nomux-sh/nomux/releases/download/v0.3.0/nomux-0.3.0-aarch64-apple-darwin.tar.gz"
+      sha256 "5332dd0b26711fde546b79f683b72427be9ed20efade88b111ed605c1855ada1"
     end
     on_intel do
-      url "https://github.com/nomux-sh/nomux/releases/download/v0.2.1/nomux-0.2.1-x86_64-apple-darwin.tar.gz"
-      sha256 "1f7a10b042bec336d5a19c050c8a56ebf9f5766621df714bbdcbf497774d0954"
+      url "https://github.com/nomux-sh/nomux/releases/download/v0.3.0/nomux-0.3.0-x86_64-apple-darwin.tar.gz"
+      sha256 "41517ab02e3ea6927a4ce680e0055a264066e7c0d939f19deeb0cec040cba3ab"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/nomux-sh/nomux/releases/download/v0.2.1/nomux-0.2.1-aarch64-unknown-linux-musl.tar.gz"
-      sha256 "acdcc7ecfbf3794bda3758c82822b2ebcba9e4f8f2691fc14adfb9cfa3fb8fc9"
+      url "https://github.com/nomux-sh/nomux/releases/download/v0.3.0/nomux-0.3.0-aarch64-unknown-linux-musl.tar.gz"
+      sha256 "7e76d2834b72efb20027636c5a18ccc3194426ba10c2da040d12f2d7cd039092"
     end
     on_intel do
-      url "https://github.com/nomux-sh/nomux/releases/download/v0.2.1/nomux-0.2.1-x86_64-unknown-linux-musl.tar.gz"
-      sha256 "130522a7a8543360c25d9b64c1e9c3e2b7249e9ba907ffcc58576f870d115ee2"
+      url "https://github.com/nomux-sh/nomux/releases/download/v0.3.0/nomux-0.3.0-x86_64-unknown-linux-musl.tar.gz"
+      sha256 "911cd0950af9df41672a40c36ec83952b3ebd594f201a858483d108d49c9410e"
     end
   end
 
